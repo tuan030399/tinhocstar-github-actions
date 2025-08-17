@@ -1,0 +1,81 @@
+name: 🧪 Test Minimal Dependencies
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-minimal:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        cache: false
+    
+    - name: Backup Original Pubspec
+      run: |
+        cp pubspec.yaml pubspec_backup.yaml
+        
+    - name: Create Minimal Pubspec
+      run: |
+        cat > pubspec.yaml << 'EOF'
+        name: qltinhoc
+        description: "A new Flutter project."
+        publish_to: 'none'
+        version: 1.0.0+1
+        
+        environment:
+          sdk: ^3.8.1
+        
+        dependencies:
+          flutter:
+            sdk: flutter
+          cupertino_icons: ^1.0.8
+        
+        dev_dependencies:
+          flutter_test:
+            sdk: flutter
+          flutter_lints: ^6.0.0
+        
+        flutter:
+          uses-material-design: true
+        EOF
+        
+    - name: Test Minimal Build
+      run: |
+        echo "=== TESTING WITH MINIMAL DEPENDENCIES ==="
+        flutter clean
+        flutter pub get
+        flutter build ios --no-codesign || {
+          echo "❌ Even minimal dependencies failed"
+          exit 1
+        }
+        echo "✅ Minimal dependencies build SUCCESS"
+        
+    - name: Restore Original Pubspec
+      run: |
+        cp pubspec_backup.yaml pubspec.yaml
+        
+    - name: Test Full Dependencies
+      run: |
+        echo "=== TESTING WITH FULL DEPENDENCIES ==="
+        flutter clean
+        flutter pub get
+        flutter build ios --no-codesign || {
+          echo "❌ Full dependencies failed"
+          echo "=== PROBLEMATIC DEPENDENCIES ==="
+          echo "Likely culprits:"
+          echo "- google_mlkit_text_recognition"
+          echo "- image_picker" 
+          echo "- permission_handler"
+          echo "- file_picker"
+          echo "- gsheets"
+          exit 1
+        }
+        echo "✅ Full dependencies build SUCCESS"
