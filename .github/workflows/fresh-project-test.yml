@@ -1,0 +1,48 @@
+name: 🆕 Fresh Project Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fresh-test:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        
+    - name: Create Fresh Flutter Project
+      run: |
+        echo "Creating fresh Flutter project..."
+        flutter create test_app
+        cd test_app
+        
+        echo "Project created, checking structure:"
+        ls -la
+        ls -la ios/
+        
+        echo "Testing iOS build on fresh project:"
+        flutter build ios --no-codesign || {
+          echo "❌ Fresh project iOS build failed"
+          echo "This indicates a fundamental iOS toolchain issue"
+          flutter doctor -v
+          exit 1
+        }
+        
+        echo "✅ Fresh project iOS build SUCCESS"
+        echo "This means the issue is with our project configuration"
+        
+    - name: Compare with Our Project
+      run: |
+        echo "=== COMPARISON ==="
+        echo "Fresh project Podfile:"
+        cat test_app/ios/Podfile
+        echo ""
+        echo "Fresh project workspace:"
+        cat test_app/ios/Runner.xcworkspace/contents.xcworkspacedata
+        echo ""
+        echo "Fresh project Bundle ID:"
+        grep -r "PRODUCT_BUNDLE_IDENTIFIER" test_app/ios/ || echo "Not found"
