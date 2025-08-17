@@ -11,10 +11,10 @@ env:
   FLUTTER_VERSION: '3.24.3'
 
 jobs:
-  test-flutter:
-    name: 🧪 Test Flutter Setup
+  test-build:
+    name: 🧪 Test Basic Build
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
     - name: 📥 Checkout Repository
@@ -31,33 +31,47 @@ jobs:
       run: |
         echo "🔍 Checking Flutter installation..."
         flutter doctor -v
-        flutter --version
         echo "✅ Flutter check completed"
 
-    - name: 📂 Check Project Structure
+    - name: 📦 Get Dependencies
       run: |
-        echo "🔍 Checking project structure..."
-        ls -la
-        echo "📱 iOS directory:"
-        ls -la ios/ || echo "No iOS directory"
-        echo "📄 pubspec.yaml:"
-        cat pubspec.yaml
-        echo "✅ Project structure check completed"
-
-    - name: 📦 Test Dependencies
-      run: |
-        echo "📦 Testing Flutter dependencies..."
+        echo "📦 Getting Flutter dependencies..."
         flutter clean
         flutter pub get
-        flutter pub deps
-        echo "✅ Dependencies check completed"
+        echo "✅ Dependencies completed"
 
-    - name: 🔍 Analyze Code
+    - name: 🏗️ Test iOS Build
       run: |
-        echo "🔍 Running Flutter analyze..."
-        flutter analyze --no-fatal-infos
-        echo "✅ Code analysis completed"
-      continue-on-error: true
+        echo "🏗️ Testing iOS build..."
+
+        # Kiểm tra iOS project có tồn tại không
+        if [ ! -d "ios" ]; then
+          echo "❌ iOS project not found!"
+          exit 1
+        fi
+
+        echo "📱 iOS project found, attempting build..."
+
+        # Thử build với verbose để xem lỗi chi tiết
+        flutter build ios --release --no-codesign --verbose || {
+          echo "❌ Build failed, checking for common issues..."
+          echo "🔍 Checking iOS deployment target..."
+          grep -r "IPHONEOS_DEPLOYMENT_TARGET" ios/ || echo "No deployment target found"
+          echo "🔍 Checking Bundle ID..."
+          grep -r "PRODUCT_BUNDLE_IDENTIFIER" ios/ || echo "No bundle ID found"
+          exit 1
+        }
+
+        echo "✅ iOS build completed successfully!"
+
+        # Kiểm tra output
+        if [ -d "build/ios/iphoneos/Runner.app" ]; then
+          echo "✅ App found at: build/ios/iphoneos/Runner.app"
+          ls -la build/ios/iphoneos/Runner.app
+        else
+          echo "⚠️ App not found at expected location"
+          find build -name "*.app" -type d || echo "No .app found"
+        fi
     
     - name: 📤 Upload IPA Artifact
       uses: actions/upload-artifact@v4
