@@ -478,6 +478,7 @@ static Future<bool> deleteUser(String name) async {
       final newNote = [
         newId.toString(),
         DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.now()),
+        '', // ma_phieu - để trống
         phone,
         customerName,
         content,
