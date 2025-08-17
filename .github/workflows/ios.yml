@@ -45,8 +45,8 @@ jobs:
       run: |
         echo "🏗️ Building iOS app..."
 
-        # Build iOS app
-        flutter build ios --release --no-codesign
+        # Build iOS app với cú pháp đúng
+        flutter build ios --no-codesign
 
         echo "✅ iOS build completed successfully!"
 
@@ -97,6 +97,7 @@ jobs:
         echo "- Build Type: Release (unsigned)"
         echo "- IPA Size: $(ls -lh tinhocstar-ios.ipa | awk '{print $5}')"
         echo "- Build Time: $(date)"
+        echo "- Platform: iOS"
         echo "✅ Build completed successfully!"
     
     - name: 📤 Upload IPA Artifact
