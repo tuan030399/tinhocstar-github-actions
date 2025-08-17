@@ -45,5 +45,22 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- Camera and Photo Library permissions -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to camera to scan documents</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to photo library to select images</string>
+
+	<!-- File access permissions -->
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>This app needs access to documents folder</string>
+
+	<!-- Network permissions -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>
