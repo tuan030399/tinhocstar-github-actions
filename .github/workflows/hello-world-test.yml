@@ -1,0 +1,47 @@
+name: 👋 Hello World Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  hello-world:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        
+    - name: Create Hello World App
+      run: |
+        echo "=== CREATING HELLO WORLD APP ==="
+        flutter create hello_world
+        cd hello_world
+        
+        echo "=== HELLO WORLD STRUCTURE ==="
+        ls -la
+        ls -la ios/
+        
+        echo "=== HELLO WORLD BUILD ==="
+        flutter build ios --no-codesign --verbose 2>&1 | tee ../hello_build.log
+        BUILD_STATUS=${PIPESTATUS[0]}
+        
+        if [ $BUILD_STATUS -eq 0 ]; then
+          echo "✅ HELLO WORLD BUILD SUCCESS"
+          echo "iOS toolchain is working properly"
+          ls -la build/ios/iphoneos/
+        else
+          echo "❌ HELLO WORLD BUILD FAILED"
+          echo "iOS toolchain has fundamental issues"
+          tail -50 ../hello_build.log
+          exit 1
+        fi
+        
+    - name: Upload Hello World Log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: hello-world-log
+        path: hello_build.log
