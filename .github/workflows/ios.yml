@@ -67,21 +67,47 @@ jobs:
         echo "=== DIRECT iOS TEST ==="
         flutter build ios --help || echo "❌ iOS build help failed"
 
-    - name: 🏗️ Minimal Build Attempt
+    - name: 🔍 iOS Project Analysis
       run: |
-        echo "=== ATTEMPTING MINIMAL iOS BUILD ==="
-        timeout 300 flutter build ios --no-codesign --verbose || {
-          echo "❌ BUILD FAILED"
-          echo "=== ERROR ANALYSIS ==="
-          echo "Flutter doctor:"
-          flutter doctor
-          echo "Xcode status:"
-          xcodebuild -version
-          echo "iOS project check:"
-          ls -la ios/
+        echo "=== iOS PROJECT STRUCTURE ==="
+        ls -la ios/
+        echo ""
+        echo "=== PODFILE CHECK ==="
+        cat ios/Podfile || echo "❌ No Podfile found"
+        echo ""
+        echo "=== RUNNER PROJECT ==="
+        ls -la ios/Runner/
+        echo ""
+        echo "=== XCODEPROJ CHECK ==="
+        ls -la ios/Runner.xcodeproj/
+
+    - name: 🏗️ Step-by-Step Build
+      run: |
+        echo "=== STEP 1: Flutter Clean ==="
+        flutter clean
+
+        echo "=== STEP 2: Pub Get ==="
+        flutter pub get
+
+        echo "=== STEP 3: iOS Preconditions ==="
+        flutter precache --ios
+
+        echo "=== STEP 4: CocoaPods Setup ==="
+        cd ios
+        pod --version || echo "❌ CocoaPods not available"
+        pod repo update || echo "⚠️ Pod repo update failed"
+        cd ..
+
+        echo "=== STEP 5: Attempt Build ==="
+        flutter build ios --no-codesign --debug || {
+          echo "❌ DEBUG BUILD FAILED"
+          echo "=== DETAILED ERROR INFO ==="
+          cd ios
+          xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Debug -destination 'generic/platform=iOS' build || echo "Xcode build also failed"
+          cd ..
           exit 1
         }
-        echo "✅ BUILD SUCCESS"
+        echo "✅ DEBUG BUILD SUCCESS"
 
     
     - name: 📤 Upload IPA Artifact
