@@ -1,0 +1,250 @@
+name: 🍎 iOS Build - tinhocstar
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+        - release
+        - debug
+
+env:
+  FLUTTER_VERSION: '3.24.3'
+  XCODE_VERSION: '16.0'
+
+jobs:
+  build-ios:
+    name: 🏗️ Build iOS App
+    runs-on: macos-14
+    timeout-minutes: 30
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 🔧 Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        cache: true
+    
+    - name: 📋 Flutter Doctor
+      run: |
+        flutter doctor -v
+        flutter --version
+        xcodebuild -version
+    
+    - name: 📦 Get Dependencies
+      run: |
+        flutter clean
+        flutter pub get
+        flutter pub deps
+    
+    - name: 🔍 Analyze Code
+      run: flutter analyze --no-fatal-infos
+    
+    - name: 🧪 Run Tests
+      run: flutter test
+      continue-on-error: true
+    
+    - name: 📱 Create iOS Project
+      run: |
+        # Tạo iOS project nếu chưa có
+        if [ ! -d "ios" ]; then
+          flutter create --platforms=ios .
+        fi
+    
+    - name: ⚙️ Configure iOS Project
+      run: |
+        # Cập nhật Bundle ID unique
+        BUNDLE_ID="com.github.actions.tinhocstar"
+        echo "📱 Setting Bundle ID: $BUNDLE_ID"
+        
+        # Update project.pbxproj
+        sed -i '' "s/com\.example\.tinhocstar/$BUNDLE_ID/g" ios/Runner.xcodeproj/project.pbxproj
+        sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = com\.example\.[^;]*/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_ID/g" ios/Runner.xcodeproj/project.pbxproj
+        
+        # Update Info.plist
+        /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName tinhocstar" ios/Runner/Info.plist 2>/dev/null || \
+        /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string tinhocstar" ios/Runner/Info.plist
+        
+        # Set iOS Deployment Target
+        sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 12.0;/g' ios/Runner.xcodeproj/project.pbxproj
+        
+        echo "✅ iOS configuration completed"
+    
+    - name: 🖼️ Setup App Icon
+      run: |
+        # Tạo AppIcon.appiconset nếu có logo
+        if [ -f "assets/images/logo.png" ]; then
+          echo "🖼️ Setting up app icon..."
+          mkdir -p ios/Runner/Assets.xcassets/AppIcon.appiconset
+          
+          # Copy logo (sẽ dùng kích thước gốc, trong thực tế cần resize)
+          cp assets/images/logo.png ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png
+          
+          # Tạo Contents.json
+          cat > ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json << 'EOF'
+        {
+          "images" : [
+            {
+              "idiom" : "iphone",
+              "scale" : "2x",
+              "size" : "20x20"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "3x",
+              "size" : "20x20"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "2x",
+              "size" : "29x29"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "3x",
+              "size" : "29x29"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "2x",
+              "size" : "40x40"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "3x",
+              "size" : "40x40"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "2x",
+              "size" : "60x60"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "3x",
+              "size" : "60x60"
+            },
+            {
+              "filename" : "Icon-App-1024x1024@1x.png",
+              "idiom" : "ios-marketing",
+              "scale" : "1x",
+              "size" : "1024x1024"
+            }
+          ],
+          "info" : {
+            "author" : "xcode",
+            "version" : 1
+          }
+        }
+        EOF
+          echo "✅ App icon configured"
+        fi
+    
+    - name: 🏗️ Build iOS App
+      run: |
+        BUILD_TYPE="${{ github.event.inputs.build_type || 'release' }}"
+        echo "🏗️ Building iOS app in $BUILD_TYPE mode..."
+        
+        if [ "$BUILD_TYPE" = "debug" ]; then
+          flutter build ios --debug --no-codesign
+        else
+          flutter build ios --release --no-codesign
+        fi
+        
+        echo "✅ iOS build completed"
+    
+    - name: 📦 Create IPA Package
+      run: |
+        echo "📦 Creating IPA package..."
+        cd build/ios/iphoneos
+        
+        # Tạo thư mục Payload
+        mkdir -p Payload
+        
+        # Copy app vào Payload
+        cp -r Runner.app Payload/
+        
+        # Tạo IPA
+        zip -r tinhocstar-unsigned.ipa Payload/
+        
+        # Kiểm tra kích thước
+        ls -lh tinhocstar-unsigned.ipa
+        
+        echo "✅ IPA package created: tinhocstar-unsigned.ipa"
+    
+    - name: 📊 Build Summary
+      run: |
+        echo "📊 Build Summary:"
+        echo "- Flutter Version: $(flutter --version | head -n1)"
+        echo "- Xcode Version: $(xcodebuild -version | head -n1)"
+        echo "- Build Type: ${{ github.event.inputs.build_type || 'release' }}"
+        echo "- Bundle ID: com.github.actions.tinhocstar"
+        echo "- App Name: tinhocstar"
+        
+        if [ -f "build/ios/iphoneos/tinhocstar-unsigned.ipa" ]; then
+          IPA_SIZE=$(ls -lh build/ios/iphoneos/tinhocstar-unsigned.ipa | awk '{print $5}')
+          echo "- IPA Size: $IPA_SIZE"
+          echo "✅ Build successful!"
+        else
+          echo "❌ IPA file not found!"
+          exit 1
+        fi
+    
+    - name: 📤 Upload IPA Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tinhocstar-ios-${{ github.run_number }}
+        path: build/ios/iphoneos/tinhocstar-unsigned.ipa
+        retention-days: 30
+        compression-level: 6
+    
+    - name: 📤 Upload Build Logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs-${{ github.run_number }}
+        path: |
+          /Users/runner/work/_temp/_runner_file_commands/
+          ~/.flutter/logs/
+        retention-days: 7
+        if-no-files-found: ignore
+    
+    - name: 💬 Comment PR (if PR)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = 'build/ios/iphoneos/tinhocstar-unsigned.ipa';
+          
+          if (fs.existsSync(path)) {
+            const stats = fs.statSync(path);
+            const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🍎 **iOS Build Successful!**
+              
+              📱 **App**: tinhocstar
+              📦 **Size**: ${fileSizeInMB} MB
+              🔗 **Download**: Check the "Artifacts" section below
+              
+              ⚠️ **Note**: This is an unsigned IPA. You'll need to sideload it using AltStore, 3uTools, or similar tools.`
+            });
+          }
