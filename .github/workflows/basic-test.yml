@@ -1,0 +1,59 @@
+name: 🔧 Basic Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  basic:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: System Info
+      run: |
+        echo "macOS version:"
+        sw_vers
+        echo "Xcode version:"
+        xcodebuild -version
+        echo "Available space:"
+        df -h
+        
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        
+    - name: Flutter Info
+      run: |
+        echo "Flutter version:"
+        flutter --version
+        echo "Flutter doctor:"
+        flutter doctor -v
+        
+    - name: Project Check
+      run: |
+        echo "Project files:"
+        ls -la
+        echo "iOS project:"
+        ls -la ios/
+        echo "Pubspec:"
+        head -20 pubspec.yaml
+        
+    - name: Simple Commands
+      run: |
+        echo "Flutter clean:"
+        flutter clean
+        echo "Flutter pub get:"
+        flutter pub get
+        echo "Flutter analyze:"
+        flutter analyze --no-fatal-infos || echo "Analyze had warnings"
+        
+    - name: Check iOS Build Command
+      run: |
+        echo "Flutter build help:"
+        flutter build --help
+        echo "iOS build help:"
+        flutter build ios --help || echo "iOS build not available"
