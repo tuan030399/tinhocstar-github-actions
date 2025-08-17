@@ -42,6 +42,7 @@ dependencies:
   http: ^1.2.1 # Nâng cấp
   shared_preferences: ^2.2.3 # Nâng cấp
   file_picker: ^8.0.5 # Nâng cấp
+  crypto: ^3.0.3 # Thêm để hỗ trợ mã hóa SHA256
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

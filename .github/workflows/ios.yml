@@ -58,10 +58,14 @@ jobs:
       run: flutter test
       continue-on-error: true
     
-    - name: 📱 Create iOS Project
+    - name: 📱 Verify iOS Project
       run: |
-        # Tạo iOS project nếu chưa có
-        if [ ! -d "ios" ]; then
+        # Kiểm tra iOS project đã có
+        if [ -d "ios" ]; then
+          echo "✅ iOS project already exists"
+          ls -la ios/
+        else
+          echo "❌ iOS project not found, creating..."
           flutter create --platforms=ios .
         fi
     
