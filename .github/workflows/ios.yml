@@ -7,79 +7,81 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
-env:
-  FLUTTER_VERSION: 'stable'
-
 jobs:
-  debug-ios:
-    name: 🔍 Debug iOS Setup
+  basic-test:
+    name: 🧪 Basic Environment Test
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
 
     steps:
     - name: 📥 Checkout Repository
       uses: actions/checkout@v4
 
-    - name: 🔧 Setup Flutter
+    - name: 🖥️ System Check
+      run: |
+        echo "=== SYSTEM INFO ==="
+        uname -a
+        sw_vers
+        echo ""
+        echo "=== XCODE CHECK ==="
+        xcode-select --print-path || echo "❌ Xcode path not set"
+        xcodebuild -version || echo "❌ Xcode not available"
+        echo ""
+        echo "=== AVAILABLE TOOLS ==="
+        which flutter || echo "❌ Flutter not in PATH"
+        which dart || echo "❌ Dart not in PATH"
+
+    - name: 🔧 Setup Flutter (Latest Stable)
       uses: subosito/flutter-action@v2
       with:
         channel: 'stable'
-        cache: true
+        cache: false
 
-    - name: 🔍 System Info
+    - name: 📋 Flutter Environment
       run: |
-        echo "🖥️ System Information:"
-        uname -a
-        sw_vers
-        xcode-select --print-path
-        xcodebuild -version || echo "Xcode not found"
-
-    - name: 📋 Flutter Doctor
-      run: |
-        echo "🔍 Flutter Doctor:"
+        echo "=== FLUTTER INFO ==="
+        flutter --version
+        echo ""
+        echo "=== FLUTTER DOCTOR ==="
         flutter doctor -v
-        echo "📱 Flutter build targets:"
-        flutter help build
+        echo ""
+        echo "=== FLUTTER CONFIG ==="
+        flutter config
 
-    - name: 📦 Test Dependencies
+    - name: 📦 Project Dependencies
       run: |
-        echo "📦 Testing dependencies..."
-        flutter clean
+        echo "=== PROJECT STRUCTURE ==="
+        ls -la
+        echo ""
+        echo "=== PUBSPEC CHECK ==="
+        cat pubspec.yaml | head -20
+        echo ""
+        echo "=== DEPENDENCIES ==="
         flutter pub get
-        flutter pub deps
 
-    - name: 🧪 iOS Build Test
+    - name: 🎯 iOS Capability Test
       run: |
-        echo "🧪 Testing iOS build capability..."
-        echo "📱 Checking if iOS build is available:"
-        flutter build --help | grep -i ios || echo "iOS build not available"
+        echo "=== iOS BUILD AVAILABILITY ==="
+        flutter build --help | grep -A5 -B5 ios || echo "❌ iOS not in build help"
+        echo ""
+        echo "=== DIRECT iOS TEST ==="
+        flutter build ios --help || echo "❌ iOS build help failed"
 
-        echo "🔍 Trying actual iOS build:"
-        flutter build ios --help || {
-          echo "❌ iOS build command failed"
-          echo "🔍 Available build targets:"
-          flutter build --help
-          echo "🔍 Flutter doctor output:"
+    - name: 🏗️ Minimal Build Attempt
+      run: |
+        echo "=== ATTEMPTING MINIMAL iOS BUILD ==="
+        timeout 300 flutter build ios --no-codesign --verbose || {
+          echo "❌ BUILD FAILED"
+          echo "=== ERROR ANALYSIS ==="
+          echo "Flutter doctor:"
           flutter doctor
+          echo "Xcode status:"
+          xcodebuild -version
+          echo "iOS project check:"
+          ls -la ios/
           exit 1
         }
-
-        echo "✅ iOS build command is available"
-
-        echo "🏗️ Attempting actual build:"
-        flutter build ios --no-codesign || {
-          echo "❌ iOS build failed"
-          echo "🔍 Detailed error analysis:"
-          echo "System info:"
-          uname -a
-          echo "Xcode info:"
-          xcodebuild -version || echo "Xcode not available"
-          echo "iOS simulators:"
-          xcrun simctl list devices || echo "No simulators"
-          exit 1
-        }
-
-        echo "✅ iOS build completed successfully!"
+        echo "✅ BUILD SUCCESS"
 
     
     - name: 📤 Upload IPA Artifact
