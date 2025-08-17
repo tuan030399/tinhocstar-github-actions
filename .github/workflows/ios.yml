@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  FLUTTER_VERSION: '3.24.3'
+  FLUTTER_VERSION: 'stable'
 
 jobs:
   debug-ios:
@@ -23,7 +23,6 @@ jobs:
     - name: 🔧 Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: ${{ env.FLUTTER_VERSION }}
         channel: 'stable'
         cache: true
 
@@ -49,15 +48,38 @@ jobs:
         flutter pub get
         flutter pub deps
 
-    - name: 🧪 Simple Build Test
+    - name: 🧪 iOS Build Test
       run: |
-        echo "🧪 Testing simple build commands..."
-        echo "Available platforms:"
-        ls -la
-        echo "iOS directory:"
-        ls -la ios/ || echo "No iOS directory"
-        echo "Trying flutter build without target:"
-        flutter build --help || echo "Build help failed"
+        echo "🧪 Testing iOS build capability..."
+        echo "📱 Checking if iOS build is available:"
+        flutter build --help | grep -i ios || echo "iOS build not available"
+
+        echo "🔍 Trying actual iOS build:"
+        flutter build ios --help || {
+          echo "❌ iOS build command failed"
+          echo "🔍 Available build targets:"
+          flutter build --help
+          echo "🔍 Flutter doctor output:"
+          flutter doctor
+          exit 1
+        }
+
+        echo "✅ iOS build command is available"
+
+        echo "🏗️ Attempting actual build:"
+        flutter build ios --no-codesign || {
+          echo "❌ iOS build failed"
+          echo "🔍 Detailed error analysis:"
+          echo "System info:"
+          uname -a
+          echo "Xcode info:"
+          xcodebuild -version || echo "Xcode not available"
+          echo "iOS simulators:"
+          xcrun simctl list devices || echo "No simulators"
+          exit 1
+        }
+
+        echo "✅ iOS build completed successfully!"
 
     
     - name: 📤 Upload IPA Artifact
