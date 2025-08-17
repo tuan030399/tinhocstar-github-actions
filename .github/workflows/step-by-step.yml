@@ -1,0 +1,95 @@
+name: 🔧 Step by Step Debug
+
+on:
+  workflow_dispatch:
+
+jobs:
+  step-debug:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: "Step 1: Checkout"
+      uses: actions/checkout@v4
+      
+    - name: "Step 2: System Check"
+      run: |
+        echo "=== SYSTEM INFO ==="
+        sw_vers
+        xcodebuild -version
+        which xcodebuild
+        echo "=== DISK SPACE ==="
+        df -h
+        echo "=== STEP 2 COMPLETE ==="
+        
+    - name: "Step 3: Flutter Setup"
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        
+    - name: "Step 4: Flutter Check"
+      run: |
+        echo "=== FLUTTER INFO ==="
+        flutter --version
+        flutter doctor -v
+        echo "=== STEP 4 COMPLETE ==="
+        
+    - name: "Step 5: Project Structure"
+      run: |
+        echo "=== PROJECT FILES ==="
+        ls -la
+        echo "=== iOS DIRECTORY ==="
+        ls -la ios/
+        echo "=== PODFILE CHECK ==="
+        cat ios/Podfile
+        echo "=== STEP 5 COMPLETE ==="
+        
+    - name: "Step 6: Dependencies"
+      run: |
+        echo "=== FLUTTER CLEAN ==="
+        flutter clean
+        echo "=== PUB GET ==="
+        flutter pub get
+        echo "=== STEP 6 COMPLETE ==="
+        
+    - name: "Step 7: iOS Build Check"
+      run: |
+        echo "=== BUILD COMMAND CHECK ==="
+        flutter build --help | grep ios
+        flutter build ios --help
+        echo "=== STEP 7 COMPLETE ==="
+        
+    - name: "Step 8: CocoaPods"
+      run: |
+        echo "=== COCOAPODS SETUP ==="
+        cd ios
+        pod --version
+        pod repo update
+        pod install --verbose
+        cd ..
+        echo "=== STEP 8 COMPLETE ==="
+        
+    - name: "Step 9: iOS Build Attempt"
+      run: |
+        echo "=== ATTEMPTING iOS BUILD ==="
+        flutter build ios --no-codesign --verbose 2>&1 | tee build_output.log
+        BUILD_STATUS=${PIPESTATUS[0]}
+        
+        echo "=== BUILD STATUS: $BUILD_STATUS ==="
+        
+        if [ $BUILD_STATUS -ne 0 ]; then
+          echo "=== BUILD FAILED - LAST 50 LINES ==="
+          tail -50 build_output.log
+          echo "=== SEARCHING FOR ERRORS ==="
+          grep -i "error\|failed\|exception" build_output.log | tail -10
+        else
+          echo "=== BUILD SUCCESS ==="
+          ls -la build/ios/iphoneos/
+        fi
+        
+    - name: "Step 10: Upload Logs"
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: step-by-step-logs
+        path: build_output.log

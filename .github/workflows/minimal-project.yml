@@ -1,0 +1,100 @@
+name: 🧪 Minimal Project Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  minimal:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        
+    - name: Create Minimal Project
+      run: |
+        echo "=== CREATING MINIMAL PROJECT ==="
+        flutter create minimal_test
+        cd minimal_test
+        
+        echo "=== MINIMAL PROJECT STRUCTURE ==="
+        ls -la
+        ls -la ios/
+        
+        echo "=== TEST BUILD ==="
+        flutter build ios --no-codesign
+        
+        echo "=== BUILD SUCCESS ==="
+        ls -la build/ios/iphoneos/
+        
+    - name: Test Our Project Structure
+      uses: actions/checkout@v4
+      with:
+        path: our-project
+        
+    - name: Compare Projects
+      run: |
+        echo "=== COMPARING PROJECTS ==="
+        
+        echo "Minimal Podfile:"
+        cat minimal_test/ios/Podfile
+        echo ""
+        echo "Our Podfile:"
+        cat our-project/ios/Podfile
+        
+        echo "=== PUBSPEC COMPARISON ==="
+        echo "Minimal dependencies:"
+        grep -A 20 "dependencies:" minimal_test/pubspec.yaml
+        echo ""
+        echo "Our dependencies:"
+        grep -A 20 "dependencies:" our-project/pubspec.yaml
+        
+    - name: Test Our Project with Minimal Deps
+      run: |
+        echo "=== TESTING OUR PROJECT WITH MINIMAL DEPS ==="
+        cd our-project
+        
+        # Backup original
+        cp pubspec.yaml pubspec_backup.yaml
+        
+        # Use minimal pubspec
+        cat > pubspec.yaml << 'EOF'
+        name: qltinhoc
+        description: "A new Flutter project."
+        publish_to: 'none'
+        version: 1.0.0+1
+        
+        environment:
+          sdk: ^3.8.1
+        
+        dependencies:
+          flutter:
+            sdk: flutter
+          cupertino_icons: ^1.0.8
+        
+        dev_dependencies:
+          flutter_test:
+            sdk: flutter
+          flutter_lints: ^6.0.0
+        
+        flutter:
+          uses-material-design: true
+        EOF
+        
+        flutter clean
+        flutter pub get
+        
+        echo "=== BUILDING WITH MINIMAL DEPS ==="
+        flutter build ios --no-codesign || {
+          echo "❌ MINIMAL DEPS FAILED"
+          echo "This indicates iOS project configuration issue"
+          exit 1
+        }
+        
+        echo "✅ MINIMAL DEPS SUCCESS"
+        
+        # Restore original
+        cp pubspec_backup.yaml pubspec.yaml
