@@ -1,0 +1,81 @@
+name: 🚨 Error Capture
+
+on:
+  workflow_dispatch:
+
+jobs:
+  capture-error:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        
+    - name: Capture Full Error
+      run: |
+        echo "=== STARTING ERROR CAPTURE ==="
+        
+        # Setup
+        flutter clean
+        flutter pub get
+        
+        # Capture full build output
+        echo "=== ATTEMPTING iOS BUILD ==="
+        flutter build ios --no-codesign --verbose 2>&1 | tee full_build.log
+        BUILD_EXIT_CODE=${PIPESTATUS[0]}
+        
+        echo "=== BUILD EXIT CODE: $BUILD_EXIT_CODE ==="
+        
+        if [ $BUILD_EXIT_CODE -ne 0 ]; then
+          echo "=== BUILD FAILED - ANALYZING ERROR ==="
+          
+          echo "=== LAST 100 LINES OF BUILD LOG ==="
+          tail -100 full_build.log
+          
+          echo "=== SEARCHING FOR SPECIFIC ERRORS ==="
+          echo "CocoaPods errors:"
+          grep -i "cocoapods\|pod" full_build.log || echo "No CocoaPods errors"
+          
+          echo "Xcode errors:"
+          grep -i "xcode\|build failed" full_build.log || echo "No Xcode errors"
+          
+          echo "Permission errors:"
+          grep -i "permission\|denied" full_build.log || echo "No permission errors"
+          
+          echo "Missing file errors:"
+          grep -i "no such file\|not found" full_build.log || echo "No missing file errors"
+          
+          echo "=== SYSTEM STATE ==="
+          echo "Disk space:"
+          df -h
+          echo "iOS directory:"
+          ls -la ios/
+          echo "Pods directory:"
+          ls -la ios/Pods/ || echo "No Pods directory"
+          
+        else
+          echo "=== BUILD SUCCEEDED ==="
+        fi
+        
+    - name: Upload Full Log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: full-build-log
+        path: full_build.log
+        
+    - name: Show Summary
+      if: always()
+      run: |
+        echo "=== ERROR SUMMARY ==="
+        if [ -f full_build.log ]; then
+          echo "Log file size: $(wc -l < full_build.log) lines"
+          echo "Last error line:"
+          grep -i "error\|failed\|exception" full_build.log | tail -1 || echo "No clear error found"
+        fi

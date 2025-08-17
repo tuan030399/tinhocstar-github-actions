@@ -1,0 +1,95 @@
+name: 🆚 Compare with Fresh Project
+
+on:
+  workflow_dispatch:
+
+jobs:
+  compare:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    
+    steps:
+    - name: Checkout Our Project
+      uses: actions/checkout@v4
+      with:
+        path: our-project
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+        
+    - name: Test Fresh Project
+      run: |
+        echo "=== CREATING FRESH PROJECT ==="
+        flutter create fresh_test --platforms=ios
+        cd fresh_test
+        
+        echo "=== FRESH PROJECT BUILD ==="
+        flutter build ios --no-codesign 2>&1 | tee ../fresh_build.log
+        FRESH_EXIT_CODE=${PIPESTATUS[0]}
+        
+        if [ $FRESH_EXIT_CODE -eq 0 ]; then
+          echo "✅ FRESH PROJECT BUILD SUCCESS"
+        else
+          echo "❌ FRESH PROJECT BUILD FAILED"
+          echo "This indicates iOS toolchain issue on GitHub Actions"
+          tail -50 ../fresh_build.log
+          exit 1
+        fi
+        
+        cd ..
+        
+    - name: Test Our Project
+      run: |
+        echo "=== TESTING OUR PROJECT ==="
+        cd our-project
+        
+        flutter clean
+        flutter pub get
+        
+        flutter build ios --no-codesign 2>&1 | tee ../our_build.log
+        OUR_EXIT_CODE=${PIPESTATUS[0]}
+        
+        if [ $OUR_EXIT_CODE -eq 0 ]; then
+          echo "✅ OUR PROJECT BUILD SUCCESS"
+        else
+          echo "❌ OUR PROJECT BUILD FAILED"
+          echo "This indicates project configuration issue"
+          tail -50 ../our_build.log
+        fi
+        
+        cd ..
+        
+    - name: Compare Configurations
+      run: |
+        echo "=== CONFIGURATION COMPARISON ==="
+        
+        echo "=== PODFILE COMPARISON ==="
+        echo "Fresh Podfile:"
+        cat fresh_test/ios/Podfile
+        echo ""
+        echo "Our Podfile:"
+        cat our-project/ios/Podfile
+        
+        echo "=== PUBSPEC COMPARISON ==="
+        echo "Fresh pubspec dependencies:"
+        sed -n '/^dependencies:/,/^dev_dependencies:/p' fresh_test/pubspec.yaml
+        echo ""
+        echo "Our pubspec dependencies:"
+        sed -n '/^dependencies:/,/^dev_dependencies:/p' our-project/pubspec.yaml
+        
+        echo "=== BUNDLE ID COMPARISON ==="
+        echo "Fresh Bundle ID:"
+        grep -r "PRODUCT_BUNDLE_IDENTIFIER" fresh_test/ios/ | head -1
+        echo "Our Bundle ID:"
+        grep -r "PRODUCT_BUNDLE_IDENTIFIER" our-project/ios/ | head -1
+        
+    - name: Upload Logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: comparison-logs
+        path: |
+          fresh_build.log
+          our_build.log
