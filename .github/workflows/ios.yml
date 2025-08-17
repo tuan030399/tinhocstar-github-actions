@@ -41,34 +41,65 @@ jobs:
         flutter pub get
         echo "✅ Dependencies completed"
 
+    - name: 🔍 Check Flutter iOS Support
+      run: |
+        echo "🔍 Checking Flutter iOS support..."
+        flutter doctor -v
+        flutter config --list
+        echo "📱 Available build targets:"
+        flutter help build
+
     - name: 🏗️ Build iOS App
       run: |
         echo "🏗️ Building iOS app..."
 
-        # Build iOS app với cú pháp đúng
-        flutter build ios --no-codesign
+        # Kiểm tra iOS project trước
+        echo "📂 Checking iOS project structure..."
+        ls -la ios/
+
+        # Thử build với verbose để xem lỗi chi tiết
+        echo "🔨 Starting iOS build..."
+        flutter build ios --no-codesign --verbose || {
+          echo "❌ Build failed, showing detailed error info..."
+          echo "🔍 Flutter doctor:"
+          flutter doctor
+          echo "🔍 iOS project info:"
+          cat ios/Runner.xcodeproj/project.pbxproj | grep -A5 -B5 "PRODUCT_BUNDLE_IDENTIFIER"
+          echo "🔍 Build directory:"
+          ls -la build/ || echo "No build directory"
+          exit 1
+        }
 
         echo "✅ iOS build completed successfully!"
 
-        # Kiểm tra output
+        # Kiểm tra output chi tiết
+        echo "🔍 Checking build output..."
+        find build -type d -name "*.app" || echo "No .app directories found"
+
         if [ -d "build/ios/iphoneos/Runner.app" ]; then
           echo "✅ App found at: build/ios/iphoneos/Runner.app"
           ls -la build/ios/iphoneos/Runner.app
         else
-          echo "❌ App not found at expected location"
-          find build -name "*.app" -type d || echo "No .app found"
-          exit 1
+          echo "⚠️ App not found at expected location, checking alternatives..."
+          find build -name "Runner.app" -type d || echo "No Runner.app found anywhere"
         fi
 
     - name: 📦 Create IPA
       run: |
         echo "📦 Creating IPA package..."
 
-        APP_PATH="build/ios/iphoneos/Runner.app"
-        if [ ! -d "$APP_PATH" ]; then
-          echo "❌ App not found at: $APP_PATH"
+        # Tìm app file ở bất kỳ đâu
+        APP_PATH=$(find build -name "Runner.app" -type d | head -n1)
+
+        if [ -z "$APP_PATH" ]; then
+          echo "❌ No Runner.app found anywhere in build directory"
+          echo "🔍 Build directory contents:"
+          find build -type f -name "*.app" || echo "No .app files found"
+          find build -type d || echo "No directories found"
           exit 1
         fi
+
+        echo "✅ Found app at: $APP_PATH"
 
         # Tạo IPA
         mkdir -p Payload
