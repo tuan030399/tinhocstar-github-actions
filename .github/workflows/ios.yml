@@ -174,20 +174,38 @@ jobs:
     - name: 📦 Create IPA Package
       run: |
         echo "📦 Creating IPA package..."
-        cd build/ios/iphoneos
-        
-        # Tạo thư mục Payload
-        mkdir -p Payload
-        
+
+        # Kiểm tra cấu trúc thư mục build
+        echo "🔍 Checking build directory structure..."
+        find build -name "*.app" -type d 2>/dev/null || echo "No .app found"
+        ls -la build/ios/ 2>/dev/null || echo "No ios build directory"
+
+        # Tìm file .app
+        APP_PATH=$(find build -name "*.app" -type d | head -n1)
+        if [ -z "$APP_PATH" ]; then
+          echo "❌ No .app file found in build directory"
+          exit 1
+        fi
+
+        echo "✅ Found app at: $APP_PATH"
+
+        # Tạo thư mục cho IPA
+        IPA_DIR="build/ios/ipa"
+        mkdir -p "$IPA_DIR/Payload"
+
         # Copy app vào Payload
-        cp -r Runner.app Payload/
-        
+        cp -r "$APP_PATH" "$IPA_DIR/Payload/"
+
         # Tạo IPA
+        cd "$IPA_DIR"
         zip -r tinhocstar-unsigned.ipa Payload/
-        
+
         # Kiểm tra kích thước
         ls -lh tinhocstar-unsigned.ipa
-        
+
+        # Copy IPA về thư mục gốc để dễ tìm
+        cp tinhocstar-unsigned.ipa ../../../
+
         echo "✅ IPA package created: tinhocstar-unsigned.ipa"
     
     - name: 📊 Build Summary
@@ -198,13 +216,18 @@ jobs:
         echo "- Build Type: ${{ github.event.inputs.build_type || 'release' }}"
         echo "- Bundle ID: com.github.actions.tinhocstar"
         echo "- App Name: tinhocstar"
-        
-        if [ -f "build/ios/iphoneos/tinhocstar-unsigned.ipa" ]; then
-          IPA_SIZE=$(ls -lh build/ios/iphoneos/tinhocstar-unsigned.ipa | awk '{print $5}')
+
+        # Tìm file IPA
+        IPA_FILE=$(find . -name "tinhocstar-unsigned.ipa" | head -n1)
+        if [ -n "$IPA_FILE" ]; then
+          IPA_SIZE=$(ls -lh "$IPA_FILE" | awk '{print $5}')
+          echo "- IPA Location: $IPA_FILE"
           echo "- IPA Size: $IPA_SIZE"
           echo "✅ Build successful!"
         else
           echo "❌ IPA file not found!"
+          echo "🔍 Searching for any IPA files..."
+          find . -name "*.ipa" -type f
           exit 1
         fi
     
@@ -212,7 +235,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: tinhocstar-ios-${{ github.run_number }}
-        path: build/ios/iphoneos/tinhocstar-unsigned.ipa
+        path: tinhocstar-unsigned.ipa
         retention-days: 30
         compression-level: 6
     
@@ -233,8 +256,8 @@ jobs:
       with:
         script: |
           const fs = require('fs');
-          const path = 'build/ios/iphoneos/tinhocstar-unsigned.ipa';
-          
+          const path = 'tinhocstar-unsigned.ipa';
+
           if (fs.existsSync(path)) {
             const stats = fs.statSync(path);
             const fileSizeInMB = (stats.size / (1024 * 1024)).toFixed(2);
