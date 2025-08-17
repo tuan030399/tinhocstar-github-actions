@@ -428,7 +428,6 @@ class _HomeScreenState extends State<HomeScreen> {
   final ownerName = job['nguoi_lam'];
   // Tạo biến an toàn
   final scaffoldMessenger = ScaffoldMessenger.of(context);
-  final navigator = Navigator.of(context);
 
   if (jobId == null || ownerName == null || ownerName.isEmpty) {
      scaffoldMessenger.showSnackBar(
@@ -636,7 +635,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       borderRadius: BorderRadius.circular(25),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.indigo.withOpacity(0.3),
+                                          color: Colors.indigo.withValues(alpha: 0.3),
                                           blurRadius: 8,
                                           offset: const Offset(0, 4),
                                         ),
@@ -785,7 +784,7 @@ class _HomeScreenState extends State<HomeScreen> {
             value: value,
             child: Text(value),
           );
-        }).toList(),
+        }),
       ],
       onChanged: onChanged,
     );

@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qltinhoc/gemini_service.dart';
 
@@ -44,9 +43,5 @@ class OcrHelper {
     return {}; // Tạm thời để trống
   }
 
-  static String _extractData(String text, String pattern, {bool ignoreCase = false}) {
-      final regExp = RegExp(pattern, multiLine: true, caseSensitive: !ignoreCase);
-      final match = regExp.firstMatch(text);
-      return match?.group(1)?.trim() ?? match?.group(0)?.trim() ?? '';
-  }
+
 }

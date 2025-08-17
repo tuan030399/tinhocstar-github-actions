@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qltinhoc/google_sheets_api.dart';
-import 'package:qltinhoc/ocr_helper.dart';
-import 'package:qltinhoc/ocr_helper.dart' as ocr; // Thêm 'as ocr' để dùng key
-import 'package:qltinhoc/gemini_service.dart';
+import 'package:qltinhoc/ocr_helper.dart' as ocr;
 
 class JobScreen extends StatefulWidget {
   final Map<String, String>? job;
@@ -124,34 +122,12 @@ Future<void> _generateAiSuggestion() async {
   setState(() { _isAiLoading = true; });
 
   try {
-    // Tạo prompt từ dữ liệu hiện tại
-    final customerName = _controllers['ten_kh']?.text ?? '';
-    final phone = _controllers['dien_thoai']?.text ?? '';
-    final maPhieu = _controllers['ma_phieu']?.text ?? '';
-    final nguoiLam = _selectedNguoiLam ?? '';
-    final nguoiBan = _selectedNguoiBan ?? '';
-
-    final prompt = '''
-Dựa vào thông tin sau, hãy tạo một ghi chú ngắn gọn và chuyên nghiệp cho công việc sửa chữa máy tính:
-
-- Tên khách hàng: $customerName
-- Số điện thoại: $phone
-- Mã phiếu: $maPhieu
-- Người thực hiện: $nguoiLam
-- Người bán: $nguoiBan
-
-Ghi chú nên bao gồm:
-1. Tình trạng máy khi nhận
-2. Các công việc đã thực hiện
-3. Lưu ý cho khách hàng
-
-Trả về ghi chú ngắn gọn, không quá 100 từ.
-''';
-
     // Gọi AI để tạo suggestion (giả lập)
     // Trong thực tế, bạn sẽ gọi API Gemini ở đây
     await Future.delayed(const Duration(seconds: 2)); // Giả lập thời gian xử lý
 
+    final customerName = _controllers['ten_kh']?.text ?? '';
+    final phone = _controllers['dien_thoai']?.text ?? '';
     final suggestion = '''Diễn Giải: Máy tính của khách hàng $customerName (SĐT: $phone) được tiếp nhận với tình trạng chạy chậm, có nhiều phần mềm không cần thiết. Sau khi kiểm tra và thực hiện các bước sửa chữa cơ bản, máy đã hoạt động ổn định trở lại. Khuyến nghị khách hàng thường xuyên bảo trì định kỳ để đảm bảo hiệu suất tối ưu.''';
 
     if (mounted) {
