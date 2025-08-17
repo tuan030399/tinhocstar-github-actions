@@ -11,10 +11,10 @@ env:
   FLUTTER_VERSION: '3.24.3'
 
 jobs:
-  test-build:
-    name: 🧪 Test Basic Build
+  build-ios:
+    name: 🏗️ Build iOS App
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
     - name: 📥 Checkout Repository
@@ -31,6 +31,7 @@ jobs:
       run: |
         echo "🔍 Checking Flutter installation..."
         flutter doctor -v
+        flutter --version
         echo "✅ Flutter check completed"
 
     - name: 📦 Get Dependencies
@@ -40,27 +41,12 @@ jobs:
         flutter pub get
         echo "✅ Dependencies completed"
 
-    - name: 🏗️ Test iOS Build
+    - name: 🏗️ Build iOS App
       run: |
-        echo "🏗️ Testing iOS build..."
+        echo "🏗️ Building iOS app..."
 
-        # Kiểm tra iOS project có tồn tại không
-        if [ ! -d "ios" ]; then
-          echo "❌ iOS project not found!"
-          exit 1
-        fi
-
-        echo "📱 iOS project found, attempting build..."
-
-        # Thử build với verbose để xem lỗi chi tiết
-        flutter build ios --release --no-codesign --verbose || {
-          echo "❌ Build failed, checking for common issues..."
-          echo "🔍 Checking iOS deployment target..."
-          grep -r "IPHONEOS_DEPLOYMENT_TARGET" ios/ || echo "No deployment target found"
-          echo "🔍 Checking Bundle ID..."
-          grep -r "PRODUCT_BUNDLE_IDENTIFIER" ios/ || echo "No bundle ID found"
-          exit 1
-        }
+        # Build iOS app
+        flutter build ios --release --no-codesign
 
         echo "✅ iOS build completed successfully!"
 
@@ -69,9 +55,49 @@ jobs:
           echo "✅ App found at: build/ios/iphoneos/Runner.app"
           ls -la build/ios/iphoneos/Runner.app
         else
-          echo "⚠️ App not found at expected location"
+          echo "❌ App not found at expected location"
           find build -name "*.app" -type d || echo "No .app found"
+          exit 1
         fi
+
+    - name: 📦 Create IPA
+      run: |
+        echo "📦 Creating IPA package..."
+
+        APP_PATH="build/ios/iphoneos/Runner.app"
+        if [ ! -d "$APP_PATH" ]; then
+          echo "❌ App not found at: $APP_PATH"
+          exit 1
+        fi
+
+        # Tạo IPA
+        mkdir -p Payload
+        cp -r "$APP_PATH" Payload/
+        zip -r tinhocstar-ios.ipa Payload/
+
+        if [ -f "tinhocstar-ios.ipa" ]; then
+          echo "✅ IPA created successfully!"
+          ls -lh tinhocstar-ios.ipa
+        else
+          echo "❌ Failed to create IPA"
+          exit 1
+        fi
+
+    - name: 📤 Upload IPA Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: tinhocstar-ios-app
+        path: tinhocstar-ios.ipa
+        retention-days: 30
+
+    - name: 📊 Build Summary
+      run: |
+        echo "📊 Build Summary:"
+        echo "- Flutter Version: $(flutter --version | head -n1)"
+        echo "- Build Type: Release (unsigned)"
+        echo "- IPA Size: $(ls -lh tinhocstar-ios.ipa | awk '{print $5}')"
+        echo "- Build Time: $(date)"
+        echo "✅ Build completed successfully!"
     
     - name: 📤 Upload IPA Artifact
       uses: actions/upload-artifact@v4
